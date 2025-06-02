@@ -118,23 +118,8 @@ public class GameManager : MonoBehaviour
     }
 
     private void DisableCellGridInput() {
-        Debug.Log("GameManager - DisableCellGridInput");
-        Debug.Log("GameManager - cells length: " + cells.Length);
         foreach (var cell in cells)
         {
-            if (cell == null)
-            {
-                Debug.Log("GameManager - cell is null");
-                continue;
-            }
-
-            if (cell.button == null)
-            {
-                Debug.Log($"GameManager - cell '{cell.name}' button is null");
-                continue;
-            }
-
-            Debug.Log("GameManager - Disabling cell interaction");
             cell.button.interactable = false;
         }
     }

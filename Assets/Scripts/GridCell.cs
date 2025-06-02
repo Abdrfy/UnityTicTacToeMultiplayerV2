@@ -16,12 +16,6 @@ public class GridCell : NetworkBehaviour
 
     void OnClick()
     {
-        if (!button.interactable)
-        {
-            Debug.Log("GridCell - Button disabled, ignoring click");
-            return;
-        }
-
         if (buttonText.text != "-") {  
             Debug.Log("GridCell - OnClick - Button already clicked");
             return;
