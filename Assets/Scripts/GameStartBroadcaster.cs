@@ -1,3 +1,5 @@
+// Now supports multiple concurrent matches using matchId string as key
+using System;
 using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
@@ -13,7 +15,6 @@ public class GameStartBroadcaster : NetworkBehaviour
     }
 
     private Dictionary<string, MatchState> matches = new();
-    private string activeMatchId = "default"; // For now we only support one match
 
     void Start(){
         NetworkManager.Singleton.OnClientConnectedCallback += OnServerClientConnected;
@@ -22,28 +23,31 @@ public class GameStartBroadcaster : NetworkBehaviour
     private void OnServerClientConnected(ulong clientId)
     {
         Debug.Log($"[Server] Client connected: {clientId}");
-        RegisterPlayer(clientId);
-        var match = GetMatch(activeMatchId);
+        string matchId = RegisterPlayer(clientId);
+        var match = GetMatch(matchId);
         var connectedClientsCount = (match.Player1Id != 0 && match.Player2Id != 0) ? 2 : 0;
         if (connectedClientsCount == 2)
         {
             Debug.Log("[Server] Both players connected. Starting game...");
-            SendStartGameClientRpc();
-            UpdateTurnMessageClientRpc(match.Player1Id);
+            var rpcParams = new ClientRpcParams {
+                Send = new ClientRpcSendParams { TargetClientIds = new[] { match.Player1Id, match.Player2Id } }
+            };
+            SendStartGameClientRpc(matchId, rpcParams);
+            UpdateTurnMessageClientRpc(matchId, match.Player1Id, rpcParams);
         }
     }
 
     [ClientRpc]
-    public void SendStartGameClientRpc()
+    public void SendStartGameClientRpc(string matchId, ClientRpcParams rpcParams = default)
     {
         if (GameManager.Instance != null)
         {
-            GameManager.Instance.StartGame(); // Update UI on client
+            GameManager.Instance.StartGame(matchId); // Update UI on client
         }
     }
 
     [ClientRpc]
-    public void ExecuteMoveClientRpc(int cellIndex, string mark)
+    public void ExecuteMoveClientRpc(string matchId, int cellIndex, string mark, ClientRpcParams rpcParams)
     {
         if (GameManager.Instance != null && GameManager.Instance.cells[cellIndex] != null)
         {
@@ -52,12 +56,12 @@ public class GameStartBroadcaster : NetworkBehaviour
     }
 
     [ServerRpc(RequireOwnership = false)]
-    public void RequestMoveServerRpc(ulong clientId, int cellIndex)
+    public void RequestMoveServerRpc(string matchId, ulong clientId, int cellIndex)
     {
         Debug.Log($"GameStartBroadcaster - [Server] Move received from Client {clientId}, Cell: {cellIndex}");
-        if (!matches.ContainsKey(activeMatchId)) return;
+        if (!matches.ContainsKey(matchId)) return;
 
-        var match = matches[activeMatchId];
+        var match = matches[matchId];
         // Check if it's the correct player's turn
         if ((match.currentTurn == 1 && clientId != match.Player1Id) ||
             (match.currentTurn == 2 && clientId != match.Player2Id))
@@ -103,9 +107,9 @@ public class GameStartBroadcaster : NetworkBehaviour
                 Send = new ClientRpcSendParams { TargetClientIds = new[] { loserId } }
             };
 
-            AnnounceWinClientRpc(winnerParams);
-            AnnounceLoseClientRpc(loserParams);
-            ExecuteMoveClientRpc(cellIndex, mark);
+            AnnounceWinClientRpc(matchId, winnerParams);
+            AnnounceLoseClientRpc(matchId, loserParams);
+            ExecuteMoveClientRpc(matchId, cellIndex, mark, winnerParams);
             return;
         }
 
@@ -126,8 +130,8 @@ public class GameStartBroadcaster : NetworkBehaviour
             {
                 Send = new ClientRpcSendParams { TargetClientIds = new[] { match.Player1Id, match.Player2Id } }
             };
-            AnnounceDrawClientRpc(drawParams);
-            ExecuteMoveClientRpc(cellIndex, mark);
+            AnnounceDrawClientRpc(matchId, drawParams);
+            ExecuteMoveClientRpc(matchId, cellIndex, mark, drawParams);
             return;
         }
 
@@ -135,33 +139,36 @@ public class GameStartBroadcaster : NetworkBehaviour
         match.currentTurn = (match.currentTurn == 1) ? 2 : 1;
 
         ulong newTurnClientId = (match.currentTurn == 1) ? match.Player1Id : match.Player2Id;
-        UpdateTurnMessageClientRpc(newTurnClientId);
+        UpdateTurnMessageClientRpc(matchId, newTurnClientId);
 
-        ExecuteMoveClientRpc(cellIndex, mark);
+        ExecuteMoveClientRpc(matchId, cellIndex, mark);
     }
 
-    public void RegisterPlayer(ulong clientId)
+    public string RegisterPlayer(ulong clientId)
     {
         Debug.Log("GameStartBroadcaster - RegisterPlayer - ClientId: " + clientId);
-        if (!matches.ContainsKey(activeMatchId))
+
+        foreach (var kvp in matches)
         {
-            Debug.Log("GameStartBroadcaster - RegisterPlayer - Match not found, creating new match");
-            matches[activeMatchId] = new MatchState();
-            matches[activeMatchId].currentTurn = 1;
+            var match = kvp.Value;
+            if (match.Player1Id != 0 && match.Player2Id == 0)
+            {
+                match.Player2Id = clientId;
+                Debug.Log("GameStartBroadcaster - RegisterPlayer - Added to existing match: " + kvp.Key);
+                return kvp.Key;
+            }
         }
 
-        var match = matches[activeMatchId];
+        string newMatchId = System.Guid.NewGuid().ToString();
+        var newMatch = new MatchState
+        {
+            Player1Id = clientId,
+            currentTurn = 1
+        };
+        matches[newMatchId] = newMatch;
 
-        if (match.Player1Id == 0)
-        {
-            Debug.Log("GameStartBroadcaster - RegisterPlayer - Player1Id: " + clientId);
-            match.Player1Id = clientId;
-        }
-        else if (match.Player2Id == 0)
-        {
-            Debug.Log("GameStartBroadcaster - RegisterPlayer - Player2Id: " + clientId);
-            match.Player2Id = clientId;
-        }
+        Debug.Log("GameStartBroadcaster - RegisterPlayer - Created new match: " + newMatchId);
+        return newMatchId;
     }
 
     public MatchState GetMatch(string matchId)
@@ -184,7 +191,7 @@ public class GameStartBroadcaster : NetworkBehaviour
     }
 
     [ClientRpc]
-    private void UpdateTurnMessageClientRpc(ulong currentTurnClientId)
+    private void UpdateTurnMessageClientRpc(string matchId, ulong currentTurnClientId, ClientRpcParams rpcParams)
     {
         if (GameManager.Instance != null)
         {
@@ -193,7 +200,7 @@ public class GameStartBroadcaster : NetworkBehaviour
     }
 
     [ClientRpc]
-    private void AnnounceWinClientRpc(ClientRpcParams rpcParams = default)
+    private void AnnounceWinClientRpc(string matchId, ClientRpcParams rpcParams)
     {
         if (GameManager.Instance != null)
         {
@@ -202,7 +209,7 @@ public class GameStartBroadcaster : NetworkBehaviour
     }
 
     [ClientRpc]
-    private void AnnounceLoseClientRpc(ClientRpcParams rpcParams = default)
+    private void AnnounceLoseClientRpc(string matchId, ClientRpcParams rpcParams)
     {
         if (GameManager.Instance != null)
         {
@@ -211,7 +218,7 @@ public class GameStartBroadcaster : NetworkBehaviour
     }
 
     [ClientRpc]
-    private void AnnounceDrawClientRpc(ClientRpcParams rpcParams = default)
+    private void AnnounceDrawClientRpc(string matchId, ClientRpcParams rpcParams)
     {
         if (GameManager.Instance != null)
         {

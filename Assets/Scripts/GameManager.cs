@@ -40,8 +40,9 @@ public class GameManager : MonoBehaviour
         alertText.text = "Waiting for opponent...";
     }
 
-    public void StartGame()
+    public void StartGame(string matchId)
     {
+        GameState.Instance.CurrentMatchId = matchId;
         Debug.Log("GameManager - StartGame");
 
         // Show grid when the game starts
@@ -56,12 +57,6 @@ public class GameManager : MonoBehaviour
 
         restartBtn.gameObject.SetActive(false);
         alertText.text = "Game Start!";
-    }
-
-    [ClientRpc]
-    public void StartGameClientRpc()
-    {
-        StartGame();
     }
 
     [ClientRpc]
@@ -123,4 +118,11 @@ public class GameManager : MonoBehaviour
             cell.button.interactable = false;
         }
     }
+}
+
+public class GameState
+{
+    private static GameState _instance;
+    public static GameState Instance => _instance ??= new GameState();
+    public string CurrentMatchId;
 }

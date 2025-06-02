@@ -2,6 +2,7 @@ using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using static GameState;
 
 public class GridCell : NetworkBehaviour
 {
@@ -28,8 +29,14 @@ public class GridCell : NetworkBehaviour
             return;
         }
 
+        if (string.IsNullOrEmpty(GameState.Instance.CurrentMatchId))
+        {
+            Debug.LogWarning("GridCell - CurrentMatchId is not set");
+            return;
+        }
+
         Debug.Log("GridCell - OnClick - Request move");
-        broadcaster.RequestMoveServerRpc(NetworkManager.Singleton.LocalClientId, GetCellIndex());
+        broadcaster.RequestMoveServerRpc(GameState.Instance.CurrentMatchId, NetworkManager.Singleton.LocalClientId, GetCellIndex());
     }
 
     public void SetMark(string mark)
