@@ -135,13 +135,16 @@ public class GameStartBroadcaster : NetworkBehaviour
             return;
         }
 
+        var rpcParams = new ClientRpcParams {
+            Send = new ClientRpcSendParams { TargetClientIds = new[] { match.Player1Id, match.Player2Id } }
+        };
+
         // Toggle turn
         match.currentTurn = (match.currentTurn == 1) ? 2 : 1;
-
         ulong newTurnClientId = (match.currentTurn == 1) ? match.Player1Id : match.Player2Id;
-        UpdateTurnMessageClientRpc(matchId, newTurnClientId);
-
-        ExecuteMoveClientRpc(matchId, cellIndex, mark);
+        
+        UpdateTurnMessageClientRpc(matchId, newTurnClientId, rpcParams);
+        ExecuteMoveClientRpc(matchId, cellIndex, mark, rpcParams);
     }
 
     public string RegisterPlayer(ulong clientId)
