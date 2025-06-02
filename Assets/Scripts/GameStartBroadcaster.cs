@@ -69,13 +69,75 @@ public class GameStartBroadcaster : NetworkBehaviour
         string mark = (clientId == match.Player1Id) ? "X" : "O";
         match.board[cellIndex] = (mark == "X") ? 1 : 2;
 
+        // Check win
+        int[,] winConditions = new int[,]
+        {
+            {0,1,2}, {3,4,5}, {6,7,8},
+            {0,3,6}, {1,4,7}, {2,5,8},
+            {0,4,8}, {2,4,6}
+        };
+
+        bool isWin = false;
+        int playerMark = (mark == "X") ? 1 : 2;
+
+        for (int i = 0; i < winConditions.GetLength(0); i++)
+        {
+            if (match.board[winConditions[i, 0]] == playerMark &&
+                match.board[winConditions[i, 1]] == playerMark &&
+                match.board[winConditions[i, 2]] == playerMark)
+            {
+                isWin = true;
+                break;
+            }
+        }
+
+        if (isWin)
+        {
+            var winnerParams = new ClientRpcParams
+            {
+                Send = new ClientRpcSendParams { TargetClientIds = new[] { clientId } }
+            };
+            var loserId = (clientId == match.Player1Id) ? match.Player2Id : match.Player1Id;
+            var loserParams = new ClientRpcParams
+            {
+                Send = new ClientRpcSendParams { TargetClientIds = new[] { loserId } }
+            };
+
+            AnnounceWinClientRpc(winnerParams);
+            AnnounceLoseClientRpc(loserParams);
+            ExecuteMoveClientRpc(cellIndex, mark);
+            return;
+        }
+
+        // Check draw
+        bool isDraw = true;
+        for (int i = 0; i < match.board.Length; i++)
+        {
+            if (match.board[i] == 0)
+            {
+                isDraw = false;
+                break;
+            }
+        }
+
+        if (isDraw)
+        {
+            var drawParams = new ClientRpcParams
+            {
+                Send = new ClientRpcSendParams { TargetClientIds = new[] { match.Player1Id, match.Player2Id } }
+            };
+            AnnounceDrawClientRpc(drawParams);
+            ExecuteMoveClientRpc(cellIndex, mark);
+            return;
+        }
+
         // Toggle turn
         match.currentTurn = (match.currentTurn == 1) ? 2 : 1;
 
         ulong newTurnClientId = (match.currentTurn == 1) ? match.Player1Id : match.Player2Id;
         UpdateTurnMessageClientRpc(newTurnClientId);
 
-        ExecuteMoveClientRpc(cellIndex, mark);        
+        ExecuteMoveClientRpc(cellIndex, mark);
     }
 
     public void RegisterPlayer(ulong clientId)
@@ -129,5 +191,31 @@ public class GameStartBroadcaster : NetworkBehaviour
             GameManager.Instance.alertText.text = NetworkManager.Singleton.LocalClientId == currentTurnClientId ? "Your turn" : "Opponent's turn";
         }
     }
-    
+
+    [ClientRpc]
+    private void AnnounceWinClientRpc(ClientRpcParams rpcParams = default)
+    {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.AnnounceWinnerClientRpc();
+        }
+    }
+
+    [ClientRpc]
+    private void AnnounceLoseClientRpc(ClientRpcParams rpcParams = default)
+    {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.AnnounceLoserClientRpc();
+        }
+    }
+
+    [ClientRpc]
+    private void AnnounceDrawClientRpc(ClientRpcParams rpcParams = default)
+    {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.AnnounceDrawClientRpc();
+        }
+    }
 }

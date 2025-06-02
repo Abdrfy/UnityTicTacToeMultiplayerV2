@@ -1033,8 +1033,6 @@ MonoBehaviour:
   - {fileID: 164096863}
   alertText: {fileID: 939277211}
   gridParent: {fileID: 177233007}
-  Player1Id: 0
-  Player2Id: 0
   restartBtn: {fileID: 499257278}
 --- !u!4 &465197504
 Transform:

@@ -92,4 +92,50 @@ public class GameManager : MonoBehaviour
     //     alertText.text = "";
     //     StartGame();
     // }
+
+    [ClientRpc]
+    public void AnnounceWinnerClientRpc()
+    {
+        alertText.text = "You won!";
+        DisableCellGridInput();
+        // restartBtn.gameObject.SetActive(true);
+    }
+
+    [ClientRpc]
+    public void AnnounceLoserClientRpc()
+    {
+        alertText.text = "You lost!";
+        DisableCellGridInput();
+    //     restartBtn.gameObject.SetActive(true);
+    }
+
+    [ClientRpc]
+    public void AnnounceDrawClientRpc()
+    {
+        alertText.text = "It's a draw!";
+        DisableCellGridInput();
+        // restartBtn.gameObject.SetActive(true);
+    }
+
+    private void DisableCellGridInput() {
+        Debug.Log("GameManager - DisableCellGridInput");
+        Debug.Log("GameManager - cells length: " + cells.Length);
+        foreach (var cell in cells)
+        {
+            if (cell == null)
+            {
+                Debug.Log("GameManager - cell is null");
+                continue;
+            }
+
+            if (cell.button == null)
+            {
+                Debug.Log($"GameManager - cell '{cell.name}' button is null");
+                continue;
+            }
+
+            Debug.Log("GameManager - Disabling cell interaction");
+            cell.button.interactable = false;
+        }
+    }
 }
