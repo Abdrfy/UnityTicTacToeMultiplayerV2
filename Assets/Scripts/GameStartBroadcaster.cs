@@ -107,13 +107,13 @@ public class GameStartBroadcaster : NetworkBehaviour
                 Send = new ClientRpcSendParams { TargetClientIds = new[] { loserId } }
             };
 
-            var rpcParams = new ClientRpcParams {
+            var bothParams = new ClientRpcParams {
                 Send = new ClientRpcSendParams { TargetClientIds = new[] { match.Player1Id, match.Player2Id } }
             };
 
             AnnounceWinClientRpc(matchId, winnerParams);
             AnnounceLoseClientRpc(matchId, loserParams);
-            ExecuteMoveClientRpc(matchId, cellIndex, mark, rpcParams);
+            ExecuteMoveClientRpc(matchId, cellIndex, mark, bothParams);
             return;
         }
 
