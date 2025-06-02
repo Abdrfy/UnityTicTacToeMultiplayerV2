@@ -4,8 +4,6 @@ using UnityEngine;
 
 public class GameStartBroadcaster : NetworkBehaviour
 {
-    [HideInInspector] public bool isMyTurn;
-
     public class MatchState
     {
         public int[] board = new int[9];
@@ -17,21 +15,30 @@ public class GameStartBroadcaster : NetworkBehaviour
     private Dictionary<string, MatchState> matches = new();
     private string activeMatchId = "default"; // For now we only support one match
 
+    void Start(){
+        NetworkManager.Singleton.OnClientConnectedCallback += OnServerClientConnected;
+    }
+
+    private void OnServerClientConnected(ulong clientId)
+    {
+        Debug.Log($"[Server] Client connected: {clientId}");
+        RegisterPlayer(clientId);
+        var match = GetMatch(activeMatchId);
+        var connectedClientsCount = (match.Player1Id != 0 && match.Player2Id != 0) ? 2 : 0;
+        if (connectedClientsCount == 2)
+        {
+            Debug.Log("[Server] Both players connected. Starting game...");
+            SendStartGameClientRpc();
+            UpdateTurnMessageClientRpc(match.Player1Id);
+        }
+    }
+
     [ClientRpc]
     public void SendStartGameClientRpc()
     {
         if (GameManager.Instance != null)
         {
             GameManager.Instance.StartGame(); // Update UI on client
-            // Update alertText with correct turn
-            var match = GetMatch(activeMatchId);
-            if (match != null)
-            {
-                if (NetworkManager.Singleton.LocalClientId == match.Player1Id)
-                    GameManager.Instance.alertText.text = "Your turn";
-                else
-                    GameManager.Instance.alertText.text = "Opponent's turn";
-            }
         }
     }
 
@@ -41,33 +48,7 @@ public class GameStartBroadcaster : NetworkBehaviour
         if (GameManager.Instance != null && GameManager.Instance.cells[cellIndex] != null)
         {
             GameManager.Instance.cells[cellIndex].SetMark(mark);
-            // Update alertText based on turn
-            var match = GetMatch(activeMatchId);
-            if (match != null)
-            {
-                if (NetworkManager.Singleton.LocalClientId == match.Player1Id && match.currentTurn == 1)
-                    GameManager.Instance.alertText.text = "Your turn";
-                else if (NetworkManager.Singleton.LocalClientId == match.Player2Id && match.currentTurn == 2)
-                    GameManager.Instance.alertText.text = "Your turn";
-                else
-                    GameManager.Instance.alertText.text = "Opponent's turn";
-            }
         }
-    }
-
-    [ClientRpc]
-    public void UpdateTurnClientRpc(int currentTurn)
-    {
-        if (GameManager.Instance == null) return;
-
-        var localId = NetworkManager.Singleton.LocalClientId;
-        var match = GetMatch(activeMatchId);
-        if (match == null) return;
-
-        bool isMyTurn = (currentTurn == 1 && localId == match.Player1Id) ||
-                        (currentTurn == 2 && localId == match.Player2Id);
-
-        GameManager.Instance.alertText.text = isMyTurn ? "Your turn" : "Opponent's turn";
     }
 
     [ServerRpc(RequireOwnership = false)]
@@ -88,15 +69,13 @@ public class GameStartBroadcaster : NetworkBehaviour
         string mark = (clientId == match.Player1Id) ? "X" : "O";
         match.board[cellIndex] = (mark == "X") ? 1 : 2;
 
-        ulong newTurnClientId = (match.currentTurn == 1) ? match.Player1Id : match.Player2Id;
-        UpdateTurnMessageClientRpc(newTurnClientId);
-
-        ExecuteMoveClientRpc(cellIndex, mark);
-
         // Toggle turn
         match.currentTurn = (match.currentTurn == 1) ? 2 : 1;
 
-        UpdateTurnClientRpc(match.currentTurn);
+        ulong newTurnClientId = (match.currentTurn == 1) ? match.Player1Id : match.Player2Id;
+        UpdateTurnMessageClientRpc(newTurnClientId);
+
+        ExecuteMoveClientRpc(cellIndex, mark);        
     }
 
     public void RegisterPlayer(ulong clientId)
@@ -147,8 +126,7 @@ public class GameStartBroadcaster : NetworkBehaviour
     {
         if (GameManager.Instance != null)
         {
-            isMyTurn = NetworkManager.Singleton.LocalClientId == currentTurnClientId;
-            GameManager.Instance.alertText.text = isMyTurn ? "Your turn" : "Opponent's turn";
+            GameManager.Instance.alertText.text = NetworkManager.Singleton.LocalClientId == currentTurnClientId ? "Your turn" : "Opponent's turn";
         }
     }
     

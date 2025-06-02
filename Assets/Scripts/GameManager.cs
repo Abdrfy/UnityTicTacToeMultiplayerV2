@@ -92,12 +92,4 @@ public class GameManager : MonoBehaviour
     //     alertText.text = "";
     //     StartGame();
     // }
-    [ClientRpc]
-    public void UpdateTurnClientRpc(ulong currentPlayerId)
-    {
-        if (NetworkManager.Singleton.LocalClientId == currentPlayerId)
-            alertText.text = "Your turn";
-        else
-            alertText.text = "Opponent's turn";
-    }
 }
