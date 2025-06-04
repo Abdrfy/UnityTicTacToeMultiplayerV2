@@ -11,24 +11,23 @@ public class GameStartBroadcaster : NetworkBehaviour
         public int[] board = new int[9];
         public ulong Player1Id;
         public ulong Player2Id;
+        public int Player1WinRate;
+        public int Player2WinRate;
         public int currentTurn; // 1 for Player1, 2 for Player2
     }
 
     private Dictionary<string, MatchState> matches = new();
 
-    void Start(){
-        NetworkManager.Singleton.OnClientConnectedCallback += OnServerClientConnected;
-    }
-
-    private void OnServerClientConnected(ulong clientId)
+    [ServerRpc(RequireOwnership = false)]
+    public void RegisterClientToServerRpc(ulong clientId, int winRate)
     {
-        Debug.Log($"[Server] Client connected: {clientId}");
-        string matchId = RegisterPlayer(clientId);
+        Debug.Log($"[Server] RegisterClientToServerRpc - ClientId: {clientId}, WinRate: {winRate}");
+        string matchId = RegisterPlayer(clientId, winRate);
         var match = GetMatch(matchId);
-        var connectedClientsCount = (match.Player1Id != 0 && match.Player2Id != 0) ? 2 : 0;
-        if (connectedClientsCount == 2)
+
+        if (match.Player1Id != 0 && match.Player2Id != 0)
         {
-            Debug.Log("[Server] Both players connected. Starting game...");
+            Debug.Log($"[Server] Match {matchId} ready. Sending start game.");
             var rpcParams = new ClientRpcParams {
                 Send = new ClientRpcSendParams { TargetClientIds = new[] { match.Player1Id, match.Player2Id } }
             };
@@ -151,18 +150,25 @@ public class GameStartBroadcaster : NetworkBehaviour
         ExecuteMoveClientRpc(matchId, cellIndex, mark, rpcParams);
     }
 
-    public string RegisterPlayer(ulong clientId)
+    public string RegisterPlayer(ulong clientId, int clientWinRate)
     {
-        Debug.Log("GameStartBroadcaster - RegisterPlayer - ClientId: " + clientId);
+        Debug.Log($"GameStartBroadcaster - RegisterPlayer - ClientId: {clientId}, clientWinRate: {clientWinRate}");
 
         foreach (var kvp in matches)
         {
             var match = kvp.Value;
             if (match.Player1Id != 0 && match.Player2Id == 0)
             {
-                match.Player2Id = clientId;
-                Debug.Log("GameStartBroadcaster - RegisterPlayer - Added to existing match: " + kvp.Key);
-                return kvp.Key;
+                bool compatible = (match.Player1WinRate <= 30 && clientWinRate <= 30)
+                                || (match.Player1WinRate > 30 && match.Player1WinRate <= 60 && clientWinRate > 30 && clientWinRate <= 60)
+                                || (match.Player1WinRate > 60 && clientWinRate > 60);
+                if (compatible)
+                {
+                    match.Player2Id = clientId;
+                    match.Player2WinRate = clientWinRate;
+                    Debug.Log($"GameStartBroadcaster - RegisterPlayer - Matched to existing: {kvp.Key}");
+                    return kvp.Key;
+                }
             }
         }
 
@@ -170,6 +176,7 @@ public class GameStartBroadcaster : NetworkBehaviour
         var newMatch = new MatchState
         {
             Player1Id = clientId,
+            Player1WinRate = clientWinRate,
             currentTurn = 1
         };
         matches[newMatchId] = newMatch;

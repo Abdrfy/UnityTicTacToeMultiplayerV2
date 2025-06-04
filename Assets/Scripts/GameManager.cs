@@ -38,6 +38,11 @@ public class GameManager : MonoBehaviour
         Debug.Log("GameManager - OnClientConnected");
         startMatchBtn.gameObject.SetActive(false);
         alertText.text = "Waiting for opponent...";
+
+        // Request matchmaking with winrate
+        int winRate = Random.Range(0, 101); // Replace with actual win rate logic if needed
+        var broadcaster = FindFirstObjectByType<GameStartBroadcaster>();
+        broadcaster.RegisterClientToServerRpc(clientId, winRate);
     }
 
     public void StartGame(string matchId)
