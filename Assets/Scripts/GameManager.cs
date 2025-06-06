@@ -1,7 +1,6 @@
 using System.Collections;
 using Unity.Services.Authentication;
 using Unity.Services.Core;
-using Unity.Services.Multiplay;
 using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
 using UnityEngine;
@@ -16,7 +15,7 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
     public GridCell[] cells;
-    public Text alertText;
+    public TextMeshProUGUI alertText;
     public Button startGameButton;
     public int winRate = 50; // Assign this based on actual player stats
     private Coroutine heartbeatCoroutine;
@@ -128,10 +127,6 @@ public class GameManager : MonoBehaviour
         var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
         transport.SetConnectionData("127.0.0.1", 7777); // Replace with your server IP and port
         NetworkManager.Singleton.StartClient();
-
-        // Register player with server match logic
-        var broadcaster = FindFirstObjectByType<GameStartBroadcaster>();
-        broadcaster.RegisterPlayerServerRpc(lobby.Id, NetworkManager.Singleton.LocalClientId);
     }
 
     private string GetTier(int rate)

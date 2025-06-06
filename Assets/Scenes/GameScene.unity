@@ -1020,8 +1020,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b7c59ed8725c34c0fb23f627e305d7a4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  startMatchBtn: {fileID: 1135025780}
-  newGameBtn: {fileID: 499257278}
   cells:
   - {fileID: 7401097026959257631}
   - {fileID: 2135952517}
@@ -1033,7 +1031,8 @@ MonoBehaviour:
   - {fileID: 134280005}
   - {fileID: 164096863}
   alertText: {fileID: 939277211}
-  gridParent: {fileID: 177233007}
+  startGameButton: {fileID: 1135025780}
+  winRate: 50
 --- !u!4 &465197504
 Transform:
   m_ObjectHideFlags: 0
