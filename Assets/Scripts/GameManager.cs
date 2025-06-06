@@ -10,6 +10,7 @@ using Unity.Netcode.Transports.UTP;
 using UnityEngine.UI;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using TMPro;
 
 public class GameManager : MonoBehaviour
 {
@@ -41,6 +42,7 @@ public class GameManager : MonoBehaviour
     private async Task StartMatchmaking()
     {
         string tier = GetTier(winRate);
+        Debug.Log("Gamemanager - StartMatchmaking - With Tier: " + tier);
 
         try
         {
@@ -148,28 +150,27 @@ public class GameManager : MonoBehaviour
     public void AnnounceWinnerClientRpc()
     {
         alertText.text = "You win!";
-        DisableCellGridInput();
+        ToggleCellGridInput(false);
     }
 
     public void AnnounceLoserClientRpc()
     {
         alertText.text = "You lose!";
-        DisableCellGridInput();
+        ToggleCellGridInput(false);
     }
 
     public void AnnounceDrawClientRpc()
     {
         alertText.text = "Draw!";
-        DisableCellGridInput();
+        ToggleCellGridInput(false);
     }
 
-    public void DisableCellGridInput()
-    {
+    private void ToggleCellGridInput(bool isEnabled) {
         foreach (var cell in cells)
         {
-            if (cell?.button != null)
-            {
-                cell.button.interactable = false;
+            cell.button.interactable = isEnabled;
+            if (isEnabled) {
+                cell.button.GetComponentInChildren<TextMeshProUGUI>().text = "-";
             }
         }
     }
