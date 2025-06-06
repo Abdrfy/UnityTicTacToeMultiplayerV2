@@ -11,18 +11,15 @@ public class GameStartBroadcaster : NetworkBehaviour
         public int[] board = new int[9];
         public ulong Player1Id;
         public ulong Player2Id;
-        public int Player1WinRate;
-        public int Player2WinRate;
         public int currentTurn; // 1 for Player1, 2 for Player2
     }
 
     private Dictionary<string, MatchState> matches = new();
 
     [ServerRpc(RequireOwnership = false)]
-    public void RegisterClientToServerRpc(ulong clientId, int winRate)
+    public void RegisterPlayerServerRpc(string matchId, ulong clientId)
     {
-        Debug.Log($"[Server] RegisterClientToServerRpc - ClientId: {clientId}, WinRate: {winRate}");
-        string matchId = RegisterPlayer(clientId, winRate);
+        RegisterPlayer(matchId, clientId);
         var match = GetMatch(matchId);
 
         if (match.Player1Id != 0 && match.Player2Id != 0)
@@ -150,39 +147,22 @@ public class GameStartBroadcaster : NetworkBehaviour
         ExecuteMoveClientRpc(matchId, cellIndex, mark, rpcParams);
     }
 
-    public string RegisterPlayer(ulong clientId, int clientWinRate)
+    public string RegisterPlayer(string matchId, ulong clientId)
     {
-        Debug.Log($"GameStartBroadcaster - RegisterPlayer - ClientId: {clientId}, clientWinRate: {clientWinRate}");
-
-        foreach (var kvp in matches)
+        if (matches.TryGetValue(matchId, out var match))
         {
-            var match = kvp.Value;
-            if (match.Player1Id != 0 && match.Player2Id == 0)
-            {
-                bool compatible = (match.Player1WinRate <= 30 && clientWinRate <= 30)
-                                || (match.Player1WinRate > 30 && match.Player1WinRate <= 60 && clientWinRate > 30 && clientWinRate <= 60)
-                                || (match.Player1WinRate > 60 && clientWinRate > 60);
-                if (compatible)
-                {
-                    match.Player2Id = clientId;
-                    match.Player2WinRate = clientWinRate;
-                    Debug.Log($"GameStartBroadcaster - RegisterPlayer - Matched to existing: {kvp.Key}");
-                    return kvp.Key;
-                }
-            }
+            match.Player2Id = clientId;
+            return matchId;
         }
 
-        string newMatchId = System.Guid.NewGuid().ToString();
         var newMatch = new MatchState
         {
             Player1Id = clientId,
-            Player1WinRate = clientWinRate,
             currentTurn = 1
         };
-        matches[newMatchId] = newMatch;
 
-        Debug.Log("GameStartBroadcaster - RegisterPlayer - Created new match: " + newMatchId);
-        return newMatchId;
+        matches[matchId] = newMatch;
+        return matchId;
     }
 
     public MatchState GetMatch(string matchId)

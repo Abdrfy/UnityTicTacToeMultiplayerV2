@@ -1,126 +1,176 @@
-using Unity.Netcode;
+using System.Collections;
+using Unity.Services.Authentication;
+using Unity.Services.Core;
+using Unity.Services.Multiplay;
+using Unity.Services.Lobbies;
+using Unity.Services.Lobbies.Models;
 using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
+using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
+using UnityEngine.UI;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
-    public Button startMatchBtn;
     public GridCell[] cells;
-    public TMP_Text alertText;
-    public GameObject gridParent;
-    public Button restartBtn;
+    public Text alertText;
+    public Button startGameButton;
+    public int winRate = 50; // Assign this based on actual player stats
+    private Coroutine heartbeatCoroutine;
 
-    void Awake() { Instance = this; }
-
-    void Start()
+    private void Awake()
     {
-        // Hide grid initially
-        if (gridParent != null)
-            gridParent.SetActive(false);
-
-        startMatchBtn.onClick.AddListener(() =>
-        {
-            startMatchBtn.interactable = false;
-            alertText.text = "Connecting to server...";
-            var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
-            transport.SetConnectionData("127.0.0.1", 7777);
-            NetworkManager.Singleton.StartClient();
-        });
-
-        NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
+        if (Instance == null) Instance = this;
     }
 
-    void OnClientConnected(ulong clientId)
+    private async void Start()
     {
-        Debug.Log("GameManager - OnClientConnected");
-        startMatchBtn.gameObject.SetActive(false);
-        alertText.text = "Waiting for opponent...";
+        await UnityServices.InitializeAsync();
 
-        // Request matchmaking with winrate
-        int winRate = Random.Range(0, 101); // Replace with actual win rate logic if needed
+        if (!AuthenticationService.Instance.IsSignedIn)
+        {
+            await AuthenticationService.Instance.SignInAnonymouslyAsync();
+            Debug.Log($"Signed in as: {AuthenticationService.Instance.PlayerId}");
+        }
+
+        startGameButton.onClick.AddListener(() => StartMatchmaking().Forget());
+    }
+
+    private async Task StartMatchmaking()
+    {
+        string tier = GetTier(winRate);
+
+        try
+        {
+            // Step 1: Query lobbies manually with filter
+            var options = new QueryLobbiesOptions
+            {
+                Filters = new List<QueryFilter>
+                {
+                    new QueryFilter(
+                        field: QueryFilter.FieldOptions.S1,
+                        op: QueryFilter.OpOptions.EQ,
+                        value: tier)
+                }
+            };
+
+            var response = await LobbyService.Instance.QueryLobbiesAsync(options);
+            Lobby lobby = null;
+
+            if (response.Results != null && response.Results.Count > 0)
+            {
+                lobby = await LobbyService.Instance.JoinLobbyByIdAsync(response.Results[0].Id);
+                Debug.Log("Joined filtered lobby: " + lobby.Id);
+            }
+            else
+            {
+                // Step 2: Create new lobby with the same tier
+                lobby = await LobbyService.Instance.CreateLobbyAsync("TicTacToe", 2, new CreateLobbyOptions
+                {
+                    IsPrivate = false,
+                    Data = new Dictionary<string, DataObject>
+                    {
+                        {
+                            "tier",
+                            new DataObject(
+                                visibility: DataObject.VisibilityOptions.Public,
+                                value: tier,
+                                index: DataObject.IndexOptions.S1)
+                        }
+                    }
+                });
+
+                Debug.Log("Lobby created: " + lobby.Id);
+                heartbeatCoroutine = StartCoroutine(HeartbeatLobby(lobby.Id));
+            }
+
+            // Step 3: Wait for second player then start game
+            await WaitForOpponentAndLaunch(lobby);
+        }
+        catch (LobbyServiceException e)
+        {
+            Debug.LogError("Lobby matchmaking failed: " + e);
+        }
+    }
+
+    private IEnumerator HeartbeatLobby(string lobbyId)
+    {
+        while (true)
+        {
+            LobbyService.Instance.SendHeartbeatPingAsync(lobbyId);
+            yield return new WaitForSeconds(15);
+        }
+    }
+
+    private async Task WaitForOpponentAndLaunch(Lobby lobby)
+    {
+        while (true)
+        {
+            var refreshed = await LobbyService.Instance.GetLobbyAsync(lobby.Id);
+            if (refreshed.Players.Count >= 2)
+                break;
+
+            await Task.Delay(2000);
+        }
+
+        if (heartbeatCoroutine != null)
+        {
+            StopCoroutine(heartbeatCoroutine);
+        }
+
+        alertText.text = "Match Found!";
+
+        // Connect to centralized game server
+        var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
+        transport.SetConnectionData("127.0.0.1", 7777); // Replace with your server IP and port
+        NetworkManager.Singleton.StartClient();
+
+        // Register player with server match logic
         var broadcaster = FindFirstObjectByType<GameStartBroadcaster>();
-        broadcaster.RegisterClientToServerRpc(clientId, winRate);
+        broadcaster.RegisterPlayerServerRpc(lobby.Id, NetworkManager.Singleton.LocalClientId);
+    }
+
+    private string GetTier(int rate)
+    {
+        if (rate <= 30) return "low";
+        if (rate <= 60) return "mid";
+        return "high";
     }
 
     public void StartGame(string matchId)
     {
+        alertText.text = "Game Started!";
         GameState.Instance.CurrentMatchId = matchId;
-        Debug.Log("GameManager - StartGame");
-
-        // Show grid when the game starts
-        if (gridParent != null)
-            gridParent.SetActive(true);
-
-        foreach (var cell in cells)
-        {
-            cell.button.interactable = true;
-            cell.gameObject.SetActive(true);
-        }
-
-        restartBtn.gameObject.SetActive(false);
-        alertText.text = "Game Start!";
     }
 
-    [ClientRpc]
-    private void EndMatchClientRpc(string result)
+    public void AnnounceWinnerClientRpc()
     {
-        alertText.text = result;
+        alertText.text = "You win!";
+        DisableCellGridInput();
+    }
+
+    public void AnnounceLoserClientRpc()
+    {
+        alertText.text = "You lose!";
+        DisableCellGridInput();
+    }
+
+    public void AnnounceDrawClientRpc()
+    {
+        alertText.text = "Draw!";
+        DisableCellGridInput();
+    }
+
+    public void DisableCellGridInput()
+    {
         foreach (var cell in cells)
         {
             if (cell?.button != null)
+            {
                 cell.button.interactable = false;
-        }
-        restartBtn.gameObject.SetActive(true);
-    }
-
-    // public void OnRestartButton()
-    // {
-    //     var match = GameStartBroadcaster.Instance.GetMatch("default");
-    //     if (match == null) return;
-
-    //     for (int i = 0; i < match.board.Length; i++)
-    //     {
-    //         match.board[i] = 0;
-    //         cells[i].button.GetComponentInChildren<Text>().text = "";
-    //         cells[i].button.interactable = true;
-    //     }
-
-    //     restartBtn.gameObject.SetActive(false);
-    //     alertText.text = "";
-    //     StartGame();
-    // }
-
-    [ClientRpc]
-    public void AnnounceWinnerClientRpc()
-    {
-        alertText.text = "You won!";
-        DisableCellGridInput();
-        // restartBtn.gameObject.SetActive(true);
-    }
-
-    [ClientRpc]
-    public void AnnounceLoserClientRpc()
-    {
-        alertText.text = "You lost!";
-        DisableCellGridInput();
-    //     restartBtn.gameObject.SetActive(true);
-    }
-
-    [ClientRpc]
-    public void AnnounceDrawClientRpc()
-    {
-        alertText.text = "It's a draw!";
-        DisableCellGridInput();
-        // restartBtn.gameObject.SetActive(true);
-    }
-
-    private void DisableCellGridInput() {
-        foreach (var cell in cells)
-        {
-            cell.button.interactable = false;
+            }
         }
     }
 }
@@ -130,4 +180,12 @@ public class GameState
     private static GameState _instance;
     public static GameState Instance => _instance ??= new GameState();
     public string CurrentMatchId;
+}
+
+public static class TaskExtensions
+{
+    public static void Forget(this Task task)
+    {
+        // Intentionally ignore task result
+    }
 }
