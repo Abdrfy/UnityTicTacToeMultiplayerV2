@@ -16,6 +16,19 @@ public class GameStartBroadcaster : NetworkBehaviour
 
     private Dictionary<string, MatchState> matches = new();
 
+    private void Awake()
+    {
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
+        }
+    }
+
+    private void OnClientDisconnected(ulong clientId)
+    {
+        Debug.Log($"[Server] Client {clientId} disconnected from server");
+    }
+
     [ServerRpc(RequireOwnership = false)]
     public void RegisterPlayerServerRpc(string matchId, ulong clientId)
     {

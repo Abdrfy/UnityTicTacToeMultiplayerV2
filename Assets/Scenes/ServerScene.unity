@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1001 &373073149
+--- !u!1001 &1292765658
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -129,15 +129,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1393956157946185790, guid: cb2c10384bdf5463f95e77300d0f7e23, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 2789531079
-      objectReference: {fileID: 0}
-    - target: {fileID: 1393956157946185790, guid: cb2c10384bdf5463f95e77300d0f7e23, type: 3}
-      propertyPath: SpawnWithObservers
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 1393956157946185790, guid: cb2c10384bdf5463f95e77300d0f7e23, type: 3}
-      propertyPath: ActiveSceneSynchronization
-      value: 0
+      value: 2006362452
       objectReference: {fileID: 0}
     - target: {fileID: 1393956157946185790, guid: cb2c10384bdf5463f95e77300d0f7e23, type: 3}
       propertyPath: SceneMigrationSynchronization
@@ -153,11 +145,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9195386528709577663, guid: cb2c10384bdf5463f95e77300d0f7e23, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 576.0637
+      value: 778.5013
       objectReference: {fileID: 0}
     - target: {fileID: 9195386528709577663, guid: cb2c10384bdf5463f95e77300d0f7e23, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 406.65057
+      value: 401.34402
       objectReference: {fileID: 0}
     - target: {fileID: 9195386528709577663, guid: cb2c10384bdf5463f95e77300d0f7e23, type: 3}
       propertyPath: m_LocalPosition.z
@@ -196,17 +188,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: cb2c10384bdf5463f95e77300d0f7e23, type: 3}
---- !u!114 &373073150 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 7008993014478595558, guid: cb2c10384bdf5463f95e77300d0f7e23, type: 3}
-  m_PrefabInstance: {fileID: 373073149}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 45c82e615d2414a9ca73620a4aa43fe0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &1818213548
 GameObject:
   m_ObjectHideFlags: 0
@@ -324,7 +305,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a9aeac9c80b264fc2bf7f875ca8a2d32, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  broadcaster: {fileID: 373073150}
   port: 7777
 --- !u!1 &1831336859
 GameObject:
@@ -469,4 +449,4 @@ SceneRoots:
   m_Roots:
   - {fileID: 1831336862}
   - {fileID: 1818213551}
-  - {fileID: 373073149}
+  - {fileID: 1292765658}

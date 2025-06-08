@@ -14,11 +14,19 @@ using TMPro;
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
+    public GameObject gridParent;
     public GridCell[] cells;
     public TextMeshProUGUI alertText;
     public Button startGameButton;
-    public int winRate = 50; // Assign this based on actual player stats
+
+    public Toggle option1;
+    public Toggle option2;
+    public Toggle option3;
+    public ToggleGroup toggleGroup;
+
+    private int winRate = 80;
     private Coroutine heartbeatCoroutine;
+    private string currentLobbyId;
 
     private void Awake()
     {
@@ -27,7 +35,13 @@ public class GameManager : MonoBehaviour
 
     private async void Start()
     {
-        await UnityServices.InitializeAsync();
+        string rawGuid = System.Guid.NewGuid().ToString("N"); // No dashes, 32 chars
+        string profileId = rawGuid.Substring(0, 30);
+
+        var options = new InitializationOptions();
+        options.SetProfile(profileId); // Set the profile **before** initialization
+
+        await UnityServices.InitializeAsync(options); // Now initialize using options
 
         if (!AuthenticationService.Instance.IsSignedIn)
         {
@@ -35,7 +49,12 @@ public class GameManager : MonoBehaviour
             Debug.Log($"Signed in as: {AuthenticationService.Instance.PlayerId}");
         }
 
+        NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
         startGameButton.onClick.AddListener(() => StartMatchmaking().Forget());
+
+        option1.onValueChanged.AddListener(delegate { OnToggleChanged(option1, "Option 1"); });
+        option2.onValueChanged.AddListener(delegate { OnToggleChanged(option2, "Option 2"); });
+        option3.onValueChanged.AddListener(delegate { OnToggleChanged(option3, "Option 3"); });
     }
 
     private async Task StartMatchmaking()
@@ -45,6 +64,9 @@ public class GameManager : MonoBehaviour
 
         try
         {
+            startGameButton.gameObject.SetActive(false);
+            toggleGroup.gameObject.SetActive(false);
+            alertText.text = "Waiting for opponent...";
             // Step 1: Query lobbies manually with filter
             var options = new QueryLobbiesOptions
             {
@@ -124,9 +146,17 @@ public class GameManager : MonoBehaviour
         alertText.text = "Match Found!";
 
         // Connect to centralized game server
+        currentLobbyId = lobby.Id;
         var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
         transport.SetConnectionData("127.0.0.1", 7777); // Replace with your server IP and port
         NetworkManager.Singleton.StartClient();
+    }
+
+    void OnClientConnected(ulong clientId) {
+        
+        // Register player with server match logic
+        var broadcaster = FindFirstObjectByType<GameStartBroadcaster>();
+        broadcaster.RegisterPlayerServerRpc(currentLobbyId, NetworkManager.Singleton.LocalClientId);
     }
 
     private string GetTier(int rate)
@@ -140,6 +170,8 @@ public class GameManager : MonoBehaviour
     {
         alertText.text = "Game Started!";
         GameState.Instance.CurrentMatchId = matchId;
+        if (gridParent != null) 
+            gridParent.SetActive(true);
     }
 
     public void AnnounceWinnerClientRpc()
@@ -168,6 +200,12 @@ public class GameManager : MonoBehaviour
                 cell.button.GetComponentInChildren<TextMeshProUGUI>().text = "-";
             }
         }
+    }
+
+    void OnToggleChanged(Toggle toggle, string label)
+    {
+        if (toggle.isOn)
+            winRate = int.Parse(toggle.GetComponentInChildren<Text>().text);
     }
 }
 
