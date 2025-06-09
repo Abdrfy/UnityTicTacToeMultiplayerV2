@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 
-public class GameStartBroadcaster : NetworkBehaviour
+public class MatchService : NetworkBehaviour
 {
     public class MatchState
     {
@@ -67,7 +67,7 @@ public class GameStartBroadcaster : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void RequestMoveServerRpc(string matchId, ulong clientId, int cellIndex)
     {
-        Debug.Log($"GameStartBroadcaster - [Server] Move received from Client {clientId}, Cell: {cellIndex}");
+        Debug.Log($"MatchService - [Server] Move received from Client {clientId}, Cell: {cellIndex}");
         if (!matches.ContainsKey(matchId)) return;
 
         var match = matches[matchId];

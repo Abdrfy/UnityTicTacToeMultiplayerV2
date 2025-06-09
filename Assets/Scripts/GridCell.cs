@@ -22,10 +22,10 @@ public class GridCell : NetworkBehaviour
             return;
         }
 
-        var broadcaster = FindFirstObjectByType<GameStartBroadcaster>();
+        var broadcaster = FindFirstObjectByType<MatchService>();
         if (broadcaster == null)
         {
-            Debug.LogWarning("GridCell - GameStartBroadcaster not found");
+            Debug.LogWarning("GridCell - MatchService not found");
             return;
         }
 

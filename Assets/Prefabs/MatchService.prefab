@@ -10,9 +10,9 @@ GameObject:
   m_Component:
   - component: {fileID: 9195386528709577663}
   - component: {fileID: 1393956157946185790}
-  - component: {fileID: 7008993014478595558}
+  - component: {fileID: 1931507644151714201}
   m_Layer: 0
-  m_Name: ClientBroadcaster
+  m_Name: MatchService
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -58,7 +58,7 @@ MonoBehaviour:
   AutoObjectParentSync: 1
   SyncOwnerTransformWhenParented: 1
   AllowOwnerToParent: 0
---- !u!114 &7008993014478595558
+--- !u!114 &1931507644151714201
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

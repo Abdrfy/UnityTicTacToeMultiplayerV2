@@ -141,7 +141,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7123061373153884569, guid: cb2c10384bdf5463f95e77300d0f7e23, type: 3}
       propertyPath: m_Name
-      value: ClientBroadcaster
+      value: MatchService
       objectReference: {fileID: 0}
     - target: {fileID: 9195386528709577663, guid: cb2c10384bdf5463f95e77300d0f7e23, type: 3}
       propertyPath: m_LocalPosition.x

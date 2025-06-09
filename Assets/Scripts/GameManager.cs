@@ -155,7 +155,7 @@ public class GameManager : MonoBehaviour
     void OnClientConnected(ulong clientId) {
         
         // Register player with server match logic
-        var broadcaster = FindFirstObjectByType<GameStartBroadcaster>();
+        var broadcaster = FindFirstObjectByType<MatchService>();
         broadcaster.RegisterPlayerServerRpc(currentLobbyId, NetworkManager.Singleton.LocalClientId);
     }
 
