@@ -84,29 +84,19 @@ public class GameManager : MonoBehaviour
 
             if (response.Results != null && response.Results.Count > 0)
             {
-                lobby = await LobbyService.Instance.JoinLobbyByIdAsync(response.Results[0].Id);
-                Debug.Log("Joined filtered lobby: " + lobby.Id);
+                try
+                {
+                    lobby = await LobbyService.Instance.JoinLobbyByIdAsync(response.Results[0].Id);
+                    Debug.Log("Joined filtered lobby: " + lobby.Id);
+                }
+                catch (LobbyServiceException joinEx) when (joinEx.Reason == LobbyExceptionReason.LobbyFull)
+                {
+                    lobby = await CreateLobbyWithTier(tier);
+                }
             }
             else
             {
-                // Step 2: Create new lobby with the same tier
-                lobby = await LobbyService.Instance.CreateLobbyAsync("TicTacToe", 2, new CreateLobbyOptions
-                {
-                    IsPrivate = false,
-                    Data = new Dictionary<string, DataObject>
-                    {
-                        {
-                            "tier",
-                            new DataObject(
-                                visibility: DataObject.VisibilityOptions.Public,
-                                value: tier,
-                                index: DataObject.IndexOptions.S1)
-                        }
-                    }
-                });
-
-                Debug.Log("Lobby created: " + lobby.Id);
-                heartbeatCoroutine = StartCoroutine(HeartbeatLobby(lobby.Id));
+                lobby = await CreateLobbyWithTier(tier);
             }
 
             // Step 3: Wait for second player then start game
@@ -150,6 +140,28 @@ public class GameManager : MonoBehaviour
         var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
         transport.SetConnectionData("127.0.0.1", 7777); // Replace with your server IP and port
         NetworkManager.Singleton.StartClient();
+    }
+
+    private async Task<Lobby> CreateLobbyWithTier(string tier)
+    {
+        var newLobby = await LobbyService.Instance.CreateLobbyAsync("TicTacToe", 2, new CreateLobbyOptions
+        {
+            IsPrivate = false,
+            Data = new Dictionary<string, DataObject>
+            {
+                {
+                    "tier",
+                    new DataObject(
+                        visibility: DataObject.VisibilityOptions.Public,
+                        value: tier,
+                        index: DataObject.IndexOptions.S1)
+                }
+            }
+        });
+
+        heartbeatCoroutine = StartCoroutine(HeartbeatLobby(newLobby.Id));
+        Debug.Log("Created fallback lobby: " + newLobby.Id);
+        return newLobby;
     }
 
     void OnClientConnected(ulong clientId) {
