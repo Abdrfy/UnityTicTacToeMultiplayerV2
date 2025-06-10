@@ -29,7 +29,7 @@ public class MatchService : NetworkBehaviour
         Debug.Log($"[Server] Client {clientId} disconnected from server");
     }
 
-    [ServerRpc(RequireOwnership = false)]
+    [Rpc(SendTo.Server)]
     public void RegisterPlayerServerRpc(string matchId, ulong clientId)
     {
         RegisterPlayer(matchId, clientId);
@@ -38,16 +38,16 @@ public class MatchService : NetworkBehaviour
         if (match.Player1Id != 0 && match.Player2Id != 0)
         {
             Debug.Log($"[Server] Match {matchId} ready. Sending start game.");
-            var rpcParams = new ClientRpcParams {
-                Send = new ClientRpcSendParams { TargetClientIds = new[] { match.Player1Id, match.Player2Id } }
+            SendStartGameClientRpc(matchId, RpcTarget.Group(new[] { match.Player1Id, match.Player2Id }, RpcTargetUse.Temp));
+            var rpcParams = new RpcParams {
+                Send = RpcTarget.Group(new[] { match.Player1Id, match.Player2Id }, RpcTargetUse.Temp)
             };
-            SendStartGameClientRpc(matchId, rpcParams);
             UpdateTurnMessageClientRpc(matchId, match.Player1Id, rpcParams);
         }
     }
 
-    [ClientRpc]
-    public void SendStartGameClientRpc(string matchId, ClientRpcParams rpcParams = default)
+    [Rpc(SendTo.SpecifiedInParams)]
+    public void SendStartGameClientRpc(string matchId, RpcParams rpcParams)
     {
         if (GameManager.Instance != null)
         {
@@ -55,8 +55,8 @@ public class MatchService : NetworkBehaviour
         }
     }
 
-    [ClientRpc]
-    public void ExecuteMoveClientRpc(string matchId, int cellIndex, string mark, ClientRpcParams rpcParams)
+    [Rpc(SendTo.SpecifiedInParams)]
+    public void ExecuteMoveClientRpc(string matchId, int cellIndex, string mark, RpcParams rpcParams)
     {
         if (GameManager.Instance != null && GameManager.Instance.cells[cellIndex] != null)
         {
@@ -64,7 +64,7 @@ public class MatchService : NetworkBehaviour
         }
     }
 
-    [ServerRpc(RequireOwnership = false)]
+    [Rpc(SendTo.Server)]
     public void RequestMoveServerRpc(string matchId, ulong clientId, int cellIndex)
     {
         Debug.Log($"MatchService - [Server] Move received from Client {clientId}, Cell: {cellIndex}");
@@ -106,22 +106,14 @@ public class MatchService : NetworkBehaviour
 
         if (isWin)
         {
-            var winnerParams = new ClientRpcParams
-            {
-                Send = new ClientRpcSendParams { TargetClientIds = new[] { clientId } }
-            };
+            AnnounceWinRpc(matchId, RpcTarget.Single(clientId, RpcTargetUse.Temp));
+
             var loserId = (clientId == match.Player1Id) ? match.Player2Id : match.Player1Id;
-            var loserParams = new ClientRpcParams
-            {
-                Send = new ClientRpcSendParams { TargetClientIds = new[] { loserId } }
+            AnnounceLoseRpc(matchId, RpcTarget.Single(loserId, RpcTargetUse.Temp));
+            
+            var bothParams = new RpcParams {
+                Send = RpcTarget.Group(new[] { match.Player1Id, match.Player2Id }, RpcTargetUse.Temp)
             };
-
-            var bothParams = new ClientRpcParams {
-                Send = new ClientRpcSendParams { TargetClientIds = new[] { match.Player1Id, match.Player2Id } }
-            };
-
-            AnnounceWinClientRpc(matchId, winnerParams);
-            AnnounceLoseClientRpc(matchId, loserParams);
             ExecuteMoveClientRpc(matchId, cellIndex, mark, bothParams);
             return;
         }
@@ -139,17 +131,17 @@ public class MatchService : NetworkBehaviour
 
         if (isDraw)
         {
-            var drawParams = new ClientRpcParams
+            AnnounceDrawRpc(matchId, RpcTarget.Group(new[] { match.Player1Id, match.Player2Id }, RpcTargetUse.Temp));
+            var drawParams = new RpcParams
             {
-                Send = new ClientRpcSendParams { TargetClientIds = new[] { match.Player1Id, match.Player2Id } }
+                Send = RpcTarget.Group(new[] { match.Player1Id, match.Player2Id }, RpcTargetUse.Temp)
             };
-            AnnounceDrawClientRpc(matchId, drawParams);
             ExecuteMoveClientRpc(matchId, cellIndex, mark, drawParams);
             return;
         }
 
-        var rpcParams = new ClientRpcParams {
-            Send = new ClientRpcSendParams { TargetClientIds = new[] { match.Player1Id, match.Player2Id } }
+        var rpcParams = new RpcParams {
+            Send = RpcTarget.Group(new[] { match.Player1Id, match.Player2Id }, RpcTargetUse.Temp)
         };
 
         // Toggle turn
@@ -197,8 +189,8 @@ public class MatchService : NetworkBehaviour
         }
     }
 
-    [ClientRpc]
-    private void UpdateTurnMessageClientRpc(string matchId, ulong currentTurnClientId, ClientRpcParams rpcParams)
+    [Rpc(SendTo.SpecifiedInParams)]
+    private void UpdateTurnMessageClientRpc(string matchId, ulong currentTurnClientId, RpcParams rpcParams)
     {
         if (GameManager.Instance != null)
         {
@@ -206,8 +198,8 @@ public class MatchService : NetworkBehaviour
         }
     }
 
-    [ClientRpc]
-    private void AnnounceWinClientRpc(string matchId, ClientRpcParams rpcParams)
+    [Rpc(SendTo.SpecifiedInParams)]
+    private void AnnounceWinRpc(string matchId, RpcParams rpcParams)
     {
         if (GameManager.Instance != null)
         {
@@ -215,8 +207,8 @@ public class MatchService : NetworkBehaviour
         }
     }
 
-    [ClientRpc]
-    private void AnnounceLoseClientRpc(string matchId, ClientRpcParams rpcParams)
+    [Rpc(SendTo.SpecifiedInParams)]
+    private void AnnounceLoseRpc(string matchId, RpcParams rpcParams)
     {
         if (GameManager.Instance != null)
         {
@@ -224,8 +216,8 @@ public class MatchService : NetworkBehaviour
         }
     }
 
-    [ClientRpc]
-    private void AnnounceDrawClientRpc(string matchId, ClientRpcParams rpcParams)
+    [Rpc(SendTo.SpecifiedInParams)]
+    private void AnnounceDrawRpc(string matchId, RpcParams rpcParams)
     {
         if (GameManager.Instance != null)
         {

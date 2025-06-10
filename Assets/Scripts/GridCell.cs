@@ -4,10 +4,10 @@ using UnityEngine.UI;
 using TMPro;
 using static GameState;
 
-public class GridCell : NetworkBehaviour
+public class GridCell : MonoBehaviour
 {
     public Button button;
-    private TextMeshProUGUI buttonText;
+    public TextMeshProUGUI buttonText;
 
     void Start()
     {
@@ -17,25 +17,23 @@ public class GridCell : NetworkBehaviour
 
     void OnClick()
     {
-        if (buttonText.text != "-") {  
-            Debug.Log("GridCell - OnClick - Button already clicked");
+        if (buttonText.text != "-") 
+        {  
             return;
         }
 
         var broadcaster = FindFirstObjectByType<MatchService>();
         if (broadcaster == null)
         {
-            Debug.LogWarning("GridCell - MatchService not found");
+            Debug.LogError("Could not find MatchService"); // Or Debug.LogWarning("Could not find MatchService");
             return;
         }
 
         if (string.IsNullOrEmpty(GameState.Instance.CurrentMatchId))
         {
-            Debug.LogWarning("GridCell - CurrentMatchId is not set");
             return;
         }
 
-        Debug.Log("GridCell - OnClick - Request move");
         broadcaster.RequestMoveServerRpc(GameState.Instance.CurrentMatchId, NetworkManager.Singleton.LocalClientId, GetCellIndex());
     }
 
